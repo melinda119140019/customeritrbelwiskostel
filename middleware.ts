@@ -4,23 +4,21 @@ import type { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 
 export async function middleware(req: NextRequest) {
-  const publicPaths = ["/", "/login", "/register"];
+  const publicPaths = ["/login", "/register"];
   const { pathname } = req.nextUrl;
 
-  const isPublicPath = publicPaths.some(
-    (path) => pathname === path || pathname.startsWith(path + "/")
-  );
-
-  if (isPublicPath) {
+  // Halaman publik
+  if (publicPaths.includes(pathname)) {
     return NextResponse.next();
   }
 
   const accessToken = req.cookies.get("access_token")?.value;
 
+  // Tidak ada access token → login
   if (!accessToken) {
     return redirectToLogin(req);
   }
-  
+
   // Cek token expired
   let isExpired = false;
   try {
