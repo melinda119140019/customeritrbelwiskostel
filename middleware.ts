@@ -1,25 +1,25 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 
 export async function middleware(req: NextRequest) {
-  const publicPaths = ["/login", "/register"];
+  const publicPaths = ["/", "/login", "/register"];
   const { pathname } = req.nextUrl;
 
-  // Halaman publik
-  if (publicPaths.includes(pathname)) {
+  const isPublicPath = publicPaths.some(
+    (path) => pathname === path || pathname.startsWith(path + "/")
+  );
+
+  if (isPublicPath) {
     return NextResponse.next();
   }
 
   const accessToken = req.cookies.get("access_token")?.value;
 
-  // Tidak ada access token → login
   if (!accessToken) {
     return redirectToLogin(req);
   }
 
-  // Cek token expired
   let isExpired = false;
   try {
     const decoded = jwt.decode(accessToken) as { exp?: number };
@@ -31,19 +31,20 @@ export async function middleware(req: NextRequest) {
   }
 
   if (isExpired) {
-    // Coba refresh token
-    const refreshResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/refresh-token`, {
-      method: "GET",
-      credentials: "include", // penting: kirim refreshToken cookie
-      headers: {
-        Cookie: req.cookies.toString(), // kirim semua cookie
-      },
-    });
+    const refreshResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/refresh-token`,
+      {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          Cookie: req.cookies.toString(),
+        },
+      }
+    );
 
     if (refreshResponse.ok) {
       const data = await refreshResponse.json();
 
-      // Simpan access token baru di cookie
       const res = NextResponse.next();
       res.cookies.set("access_token", data.accessToken, {
         httpOnly: true,
@@ -54,7 +55,6 @@ export async function middleware(req: NextRequest) {
       return res;
     }
 
-    // Refresh gagal → login
     return redirectToLogin(req);
   }
 
