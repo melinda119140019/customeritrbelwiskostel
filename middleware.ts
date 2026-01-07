@@ -1,16 +1,24 @@
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/kamar",
+];
+
 export async function middleware(req: NextRequest) {
-  const publicPaths = ["/", "/login", "/register"];
   const { pathname } = req.nextUrl;
 
-  const isPublicPath = publicPaths.some(
+  // Public route
+  const isPublic = PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(path + "/")
   );
 
-  if (isPublicPath) {
+  if (isPublic) {
     return NextResponse.next();
   }
 
@@ -20,6 +28,7 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
+  // Decode & cek expiry
   let isExpired = false;
   try {
     const decoded = jwt.decode(accessToken) as { exp?: number };
@@ -52,6 +61,7 @@ export async function middleware(req: NextRequest) {
         sameSite: "lax",
         path: "/",
       });
+
       return res;
     }
 
